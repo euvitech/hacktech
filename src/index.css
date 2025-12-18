@@ -42,3 +42,21 @@
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
   }
 }
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+* {
+  user-select: none; /* evita seleção acidental no totem */
+}
+
+input, textarea {
+  user-select: text; /* permite digitar */
+}
