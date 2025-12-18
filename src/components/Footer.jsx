@@ -1,9 +1,10 @@
 import { MapPin, Phone, Mail, Facebook, Instagram, Twitter } from 'lucide-react';
+import Container from './Container';
 
 export default function Footer() {
   return (
     <footer className="bg-white border-t border-gray-200 text-gray-900 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-16">
+      <Container className="py-16">
         <div className="grid md:grid-cols-4 gap-12">
           <div>
             <div className="flex items-center gap-3 mb-6">
@@ -77,7 +78,7 @@ export default function Footer() {
         <div className="border-t border-gray-200 mt-12 pt-8 text-center">
           <p className="text-gray-500 text-sm">&copy; 2025 Vitrine Digital SCS. Todos os direitos reservados.</p>
         </div>
-      </div>
+      </Container>
     </footer>
   );
 }

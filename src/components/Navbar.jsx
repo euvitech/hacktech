@@ -2,6 +2,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { ShoppingCart, MapPin, Gift, Home, Search, Menu, X } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useState } from 'react';
+import Container from './Container';
+import { Building2 } from 'lucide-react';
+
 
 export default function Navbar() {
   const { cartCount } = useCart();
@@ -12,13 +15,14 @@ export default function Navbar() {
     { path: '/', icon: Home, label: 'Início' },
     { path: '/catalog', icon: Search, label: 'Catálogo' },
     { path: '/map', icon: MapPin, label: 'Mapa' },
+    { path: '/rentals', icon: Building2, label: 'Alugar Loja' },
     { path: '/loyalty', icon: Gift, label: 'Fidelidade' },
-    { path: '/cart', icon: ShoppingCart, label: 'Carrinho', badge: cartCount }
+    { path: '/cart', icon: ShoppingCart, label: 'Carrinho', badge: cartCount },
   ];
 
   return (
     <nav className="glass sticky top-0 z-50 border-b border-gray-200/80">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+      <Container>
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex items-center gap-3 group">
             <div className="w-11 h-11 bg-gray-900 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-apple group-hover:scale-105">
@@ -86,7 +90,7 @@ export default function Navbar() {
             ))}
           </div>
         )}
-      </div>
+      </Container>
     </nav>
   );
 }

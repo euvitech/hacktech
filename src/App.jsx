@@ -8,6 +8,8 @@ import ProductDetail from "./pages/ProductDetail";
 import Map from "./pages/Map";
 import Cart from "./pages/Cart";
 import Loyalty from "./pages/Loyalty";
+import Rentals from './pages/Rentals';
+
 
 function App() {
   return (
@@ -18,7 +20,7 @@ function App() {
 
           <main className="flex-1 w-full">
             {/* CENTRALIZA O "MIOLO" EM TELAS GRANDES */}
-            <div className="w-full mx-auto max-w-screen-2xl">
+            <div className="mx-auto w-full max-w-7xl">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/catalog" element={<Catalog />} />
@@ -26,6 +28,8 @@ function App() {
                 <Route path="/map" element={<Map />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/loyalty" element={<Loyalty />} />
+                <Route path="/rentals" element={<Rentals />} />
+
               </Routes>
             </div>
           </main>

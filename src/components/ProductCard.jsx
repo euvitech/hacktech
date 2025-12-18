@@ -1,15 +1,15 @@
-import { Link } from 'react-router-dom';
-import { Star, ShoppingCart, MapPin } from 'lucide-react';
-import { useCart } from '../context/CartContext';
-import { stores } from '../data/mockData';
+import { Link } from "react-router-dom";
+import { Star, ShoppingCart, MapPin } from "lucide-react";
+import { useCart } from "../context/CartContext";
+import { stores } from "../data/mockData";
 
 export default function ProductCard({ product }) {
   const { addToCart } = useCart();
-  const store = stores.find(s => s.id === product.storeId);
+  const store = stores.find((s) => s.id === product.storeId);
   const discount = Math.round((1 - product.price / product.originalPrice) * 100);
 
   return (
-    <div className="group bg-white rounded-3xl shadow-base overflow-hidden hover:shadow-lg transition-apple">
+    <div className="group bg-white rounded-3xl shadow-base overflow-hidden hover:shadow-lg transition-apple w-full">
       <Link to={`/product/${product.id}`}>
         <div className="relative overflow-hidden">
           <img
@@ -18,6 +18,7 @@ export default function ProductCard({ product }) {
             className="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-700"
           />
           <div className="absolute inset-0 bg-black/4 opacity-0 group-hover:opacity-100 transition-opacity duration-250" />
+
           {discount > 0 && (
             <div className="absolute top-4 right-4">
               <div className="bg-white text-gray-900 px-3 py-2 rounded-full text-sm font-semibold shadow-md">
@@ -25,6 +26,7 @@ export default function ProductCard({ product }) {
               </div>
             </div>
           )}
+
           <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur-sm px-3 py-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-y-2 group-hover:translate-y-0">
             <Star size={16} className="text-amber-500 fill-amber-500" />
             <span className="text-sm font-semibold text-gray-800">{product.rating}</span>

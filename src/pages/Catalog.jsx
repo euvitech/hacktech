@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, ChevronDown } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
+import Container from '../components/Container';
 import { products, categories, stores } from '../data/mockData';
 
 export default function Catalog() {
@@ -81,7 +82,7 @@ export default function Catalog() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b sticky top-16 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <Container className="py-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -151,10 +152,10 @@ export default function Catalog() {
               </button>
             </div>
           )}
-        </div>
+        </Container>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <Container className="py-6">
         <div className="flex gap-6">
           <aside className={`${showFilters ? 'block' : 'hidden'} md:block w-full md:w-64 flex-shrink-0`}>
             <div className="bg-white rounded-xl p-4 shadow-sm sticky top-36">
@@ -232,9 +233,11 @@ export default function Catalog() {
             </div>
 
             {filteredProducts.length > 0 ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 justify-items-center">
                 {filteredProducts.map(product => (
-                  <ProductCard key={product.id} product={product} />
+                  <div key={product.id} className="w-full max-w-[340px]">
+                    <ProductCard product={product} />
+                  </div>
                 ))}
               </div>
             ) : (
@@ -250,7 +253,7 @@ export default function Catalog() {
             )}
           </main>
         </div>
-      </div>
+      </Container>
     </div>
   );
 }

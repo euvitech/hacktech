@@ -386,3 +386,90 @@ export const initialLoyalty = {
     { id: 2, code: "FRETEGRATIS", discount: 0, type: "freeDelivery", minValue: 50, expiresAt: "2025-01-31" }
   ]
 };
+
+export const rentalSpaces = [
+  {
+    id: 101,
+    name: "Loja 12 - Galeria Central",
+    address: "SCS - Galeria Central, Loja 12",
+    lat: -16.6801,
+    lng: -49.2541,
+    sizeM2: 22,
+    priceMonth: 1800,
+    condoMonth: 280,
+    type: "quiosque",
+    categoryFit: ["electronics", "fashion", "food"],
+    available: true,
+    photos: [
+      "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800",
+      "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=800"
+    ],
+    features: ["Boa vitrine", "Fluxo alto", "Ponto de energia 220V"],
+    contactName: "Administração Galeria",
+    phone: "(62) 99999-1111",
+    whatsapp: "5562999991111",
+  },
+  {
+    id: 102,
+    name: "Loja 07 - Rua do Comércio",
+    address: "Rua do Comércio, 77 (ao lado do mercado)",
+    lat: -16.6806,
+    lng: -49.2532,
+    sizeM2: 35,
+    priceMonth: 2600,
+    condoMonth: 0,
+    type: "loja",
+    categoryFit: ["electronics", "home", "sports"],
+    available: true,
+    photos: [
+      "https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=800",
+      "https://images.unsplash.com/photo-1484101403633-562f891dc89a?w=800"
+    ],
+    features: ["Fachada para rua", "Banheiro", "Depósito"],
+    contactName: "Corretor Parceiro",
+    phone: "(62) 98888-2222",
+    whatsapp: "5562988882222",
+  },
+  {
+    id: 103,
+    name: "Box 03 - Praça de Alimentação",
+    address: "Praça Central, Piso 1 - Box 03",
+    lat: -16.6808,
+    lng: -49.2536,
+    sizeM2: 18,
+    priceMonth: 2100,
+    condoMonth: 350,
+    type: "box",
+    categoryFit: ["food"],
+    available: true,
+    photos: [
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800",
+      "https://images.unsplash.com/photo-1552566626-52f8b828add9?w=800"
+    ],
+    features: ["Exaustão", "Ponto de água", "Fluxo no almoço"],
+    contactName: "Admin Praça",
+    phone: "(62) 97777-3333",
+    whatsapp: "5562977773333",
+  },
+  {
+    id: 104,
+    name: "Loja 20 - Corredor Principal",
+    address: "Av. Central, 200 - Loja 20",
+    lat: -16.6799,
+    lng: -49.2552,
+    sizeM2: 48,
+    priceMonth: 4200,
+    condoMonth: 520,
+    type: "loja",
+    categoryFit: ["fashion", "home", "books"],
+    available: true,
+    photos: [
+      "https://images.unsplash.com/photo-1526481280695-3c687fd643ed?w=800",
+      "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800"
+    ],
+    features: ["Mezanino", "Ar-condicionado", "Vitrine ampla"],
+    contactName: "Imobiliária",
+    phone: "(62) 96666-4444",
+    whatsapp: "5562966664444",
+  },
+];
