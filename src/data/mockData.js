@@ -473,3 +473,43 @@ export const rentalSpaces = [
     whatsapp: "5562966664444",
   },
 ];
+
+
+// MAPA INTERATIVO
+
+export const scsCenter = { lat: -15.7971, lng: -47.88949 }; // SCS (centro aprox) :contentReference[oaicite:0]{index=0}
+
+export const scsStores = [
+  {
+    id: 1,
+    name: "Parque Cidade Corporate (exemplo)",
+    address: "SCS Quadra 9, Brasília - DF",
+    lat: -15.7951012,
+    lng: -47.8934468, // :contentReference[oaicite:1]{index=1}
+    category: "Serviços",
+  },
+  {
+    id: 2,
+    name: "Loja Exemplo 01",
+    address: "SCS Quadra 5 (ajuste depois)",
+    lat: -15.7964,
+    lng: -47.8906,
+    category: "Eletrônicos",
+  },
+  {
+    id: 3,
+    name: "Loja Exemplo 02",
+    address: "SCS Quadra 6 (ajuste depois)",
+    lat: -15.7980,
+    lng: -47.8887,
+    category: "Moda",
+  },
+  {
+    id: 4,
+    name: "Loja Exemplo 03",
+    address: "SCS Quadra 2 (ajuste depois)",
+    lat: -15.7969,
+    lng: -47.8869,
+    category: "Alimentação",
+  },
+];

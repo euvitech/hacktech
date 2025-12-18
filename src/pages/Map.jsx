@@ -1,236 +1,378 @@
-import { useState, useMemo } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { MapPin, Star, Clock, Navigation, Phone, Filter, X, ChevronRight } from 'lucide-react';
-import { stores, categories, products } from '../data/mockData';
+import { useEffect, useMemo, useRef, useState } from "react";
+import { setOptions, importLibrary } from "@googlemaps/js-api-loader";
+import QRCode from "react-qr-code";
+import Container from "../components/Container";
 
-export default function Map() {
-  const [searchParams] = useSearchParams();
-  const [selectedStore, setSelectedStore] = useState(
-    searchParams.get('store') ? parseInt(searchParams.get('store')) : null
-  );
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
+// ✅ Ajuste para o ponto EXATO onde o TOTEM fica no SCS
+const kioskOrigin = { lat: -15.7971, lng: -47.88949 };
 
-  const filteredStores = useMemo(() => {
-    if (!selectedCategory) return stores;
-    return stores.filter(s => s.category === selectedCategory);
-  }, [selectedCategory]);
+export default function MapGoogle() {
+  const mapDivRef = useRef(null);
 
-  const store = selectedStore ? stores.find(s => s.id === selectedStore) : null;
-  const storeProducts = store ? products.filter(p => p.storeId === store.id).slice(0, 4) : [];
+  const mapRef = useRef(null);
+  const placesServiceRef = useRef(null);
+  const directionsServiceRef = useRef(null);
+  const directionsRendererRef = useRef(null);
+  const markersRef = useRef([]);
 
-  const getCategoryName = (catId) => {
-    const cat = categories.find(c => c.id === catId);
-    return cat?.name || catId;
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
+
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]); // places list
+  const [selected, setSelected] = useState(null); // { placeId, name, address, lat, lng }
+  const [routeInfo, setRouteInfo] = useState(null); // { distanceText, durationText }
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [loadingRoute, setLoadingRoute] = useState(false);
+
+  // QR abre rota a pé no celular (Google Maps)
+  const qrUrl = useMemo(() => {
+    if (!selected?.placeId) return "";
+    return `https://www.google.com/maps/dir/?api=1&origin=${kioskOrigin.lat},${kioskOrigin.lng}&destination_place_id=${selected.placeId}&travelmode=walking`;
+  }, [selected]);
+
+  const clearMarkers = () => {
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
   };
+
+  const addMarkerForPlace = (place) => {
+    if (!mapRef.current || !place?.geometry?.location) return;
+
+    const marker = new google.maps.Marker({
+      map: mapRef.current,
+      position: place.geometry.location,
+      title: place.name,
+    });
+
+    marker.addListener("click", () => {
+      if (place.place_id) {
+        selectPlaceById(place.place_id);
+      }
+    });
+
+    markersRef.current.push(marker);
+  };
+
+  const selectPlaceById = (placeId) => {
+    const svc = placesServiceRef.current;
+    const dirSvc = directionsServiceRef.current;
+    const dirRend = directionsRendererRef.current;
+
+    if (!svc || !dirSvc || !dirRend) return;
+
+    setLoadingRoute(true);
+    setRouteInfo(null);
+
+    svc.getDetails(
+      {
+        placeId,
+        fields: ["place_id", "name", "formatted_address", "geometry"],
+      },
+      (place, status) => {
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !place?.geometry?.location) {
+          setLoadingRoute(false);
+          return;
+        }
+
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+
+        setSelected({
+          placeId: place.place_id,
+          name: place.name || "Destino",
+          address: place.formatted_address || "",
+          lat,
+          lng,
+        });
+
+        setResults((prev) => {
+          const item = {
+            place_id: place.place_id,
+            name: place.name,
+            formatted_address: place.formatted_address || "",
+            geometry: place.geometry,
+          };
+
+          // evita duplicado
+          if (prev.some((p) => p.place_id === item.place_id)) return prev;
+
+          // coloca o selecionado no topo
+          return [item, ...prev].slice(0, 20);
+        });
+
+        // Centraliza no destino
+        mapRef.current.panTo({ lat, lng });
+
+        // Rota a pé até o lugar (placeId)
+        dirSvc.route(
+          {
+            origin: kioskOrigin,
+            destination: { placeId },
+            travelMode: google.maps.TravelMode.WALKING,
+          },
+          (result, dStatus) => {
+            if (dStatus === "OK" && result) {
+              dirRend.setDirections(result);
+
+              const leg = result.routes?.[0]?.legs?.[0];
+              setRouteInfo({
+                distanceText: leg?.distance?.text || "",
+                durationText: leg?.duration?.text || "",
+              });
+            } else {
+              setRouteInfo(null);
+              console.error("Directions status:", dStatus);
+            }
+            setLoadingRoute(false);
+          }
+        );
+      }
+    );
+  };
+
+  const runSearch = () => {
+    const svc = placesServiceRef.current;
+    if (!svc || !query.trim()) return;
+
+    setLoadingSearch(true);
+    setSelected(null);
+    setRouteInfo(null);
+
+    // limpa rota anterior
+    try {
+      directionsRendererRef.current?.set("directions", null);
+    } catch {}
+
+    clearMarkers();
+
+    // Busca lugares "cadastrados no Google" perto do totem (SCS)
+    svc.textSearch(
+      {
+        query: query.trim(),
+        location: kioskOrigin,
+        radius: 2500, // ajuste conforme o tamanho do SCS/área desejada
+      },
+      (places, status) => {
+        setLoadingSearch(false);
+
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !places?.length) {
+          setResults([]);
+          return;
+        }
+
+        setResults(places);
+
+        // coloca pins e enquadra
+        places.forEach(addMarkerForPlace);
+
+        const bounds = new google.maps.LatLngBounds();
+        bounds.extend(kioskOrigin);
+        places.forEach((p) => p.geometry?.location && bounds.extend(p.geometry.location));
+        mapRef.current.fitBounds(bounds, 60);
+      }
+    );
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const key = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+        if (!key) {
+          throw new Error(
+            'Chave não encontrada. Crie ".env" com VITE_GOOGLE_MAPS_KEY=... e reinicie o npm run dev.'
+          );
+        }
+
+        setOptions({ key, v: "weekly" });
+
+        const { Map } = await importLibrary("maps");
+        await importLibrary("places");
+        await importLibrary("routes");
+
+        if (cancelled) return;
+
+        const map = new Map(mapDivRef.current, {
+          center: kioskOrigin,
+          zoom: 16,
+          disableDefaultUI: true, // totem-friendly
+          gestureHandling: "greedy",
+          clickableIcons: true, 
+        });
+
+        mapRef.current = map;
+
+        // ✅ Clicar em qualquer POI do Google no mapa -> traça rota
+        map.addListener("click", (e) => {
+          if (!e.placeId) return;
+          // Isso impede o popup padrão do Google e deixa você controlar o clique
+          e.stop();
+          // Seleciona o local do Google e traça rota a pé
+          selectPlaceById(e.placeId);
+        });
+
+        // marcador do totem
+        new google.maps.Marker({
+          map,
+          position: kioskOrigin,
+          title: "Totem (Você está aqui)",
+        });
+
+        // services
+        placesServiceRef.current = new google.maps.places.PlacesService(map);
+        directionsServiceRef.current = new google.maps.DirectionsService();
+        directionsRendererRef.current = new google.maps.DirectionsRenderer({
+          map,
+          suppressMarkers: false,
+        });
+
+        setReady(true);
+      } catch (e) {
+        console.error(e);
+        setError(e?.message || "Erro ao carregar Google Maps.");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      clearMarkers();
+      try {
+        directionsRendererRef.current?.setMap(null);
+      } catch {}
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-dark">Mapa de Lojas</h1>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-white"
-          >
-            <Filter size={18} />
-            Filtrar
-          </button>
+      <Container className="py-6">
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold text-gray-900">Mapa (Google) • SCS</h1>
+          <p className="text-gray-600 text-sm">
+            Busque um estabelecimento, toque nele e veja a rota <b>a pé</b>. Use o QR para abrir no celular.
+          </p>
         </div>
 
-        {showFilters && (
-          <div className="bg-white p-4 rounded-xl shadow-sm mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Filtrar por Categoria</h3>
-              <button onClick={() => setShowFilters(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedCategory('')}
-                className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                  !selectedCategory
-                    ? 'bg-primary text-white'
-                    : 'bg-gray-100 hover:bg-gray-200'
-                }`}
-              >
-                Todas
-              </button>
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                    selectedCategory === cat.id
-                      ? 'bg-primary text-white'
-                      : 'bg-gray-100 hover:bg-gray-200'
-                  }`}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-2xl mb-4">
+            <b>Erro:</b> {error}
           </div>
         )}
 
         <div className="grid lg:grid-cols-3 gap-6">
+          {/* MAPA */}
           <div className="lg:col-span-2">
-            <div className="bg-gradient-to-br from-secondary/10 to-primary/10 rounded-xl h-96 lg:h-[500px] relative overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin size={48} className="text-primary mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-dark mb-2">Mapa Interativo do SCS</h3>
-                  <p className="text-gray-600">Visualização do bairro com lojas parceiras</p>
-                </div>
-              </div>
-
-              {filteredStores.map((s, index) => {
-                const positions = [
-                  { top: '20%', left: '30%' },
-                  { top: '35%', left: '60%' },
-                  { top: '55%', left: '25%' },
-                  { top: '40%', left: '45%' },
-                  { top: '65%', left: '70%' },
-                  { top: '25%', left: '75%' },
-                  { top: '70%', left: '40%' },
-                  { top: '45%', left: '15%' },
-                ];
-                const pos = positions[index % positions.length];
-
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedStore(s.id)}
-                    className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all ${
-                      selectedStore === s.id ? 'scale-125 z-10' : 'hover:scale-110'
-                    }`}
-                    style={{ top: pos.top, left: pos.left }}
-                  >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-lg ${
-                      selectedStore === s.id ? 'bg-primary' : 'bg-white'
-                    }`}>
-                      <MapPin size={20} className={selectedStore === s.id ? 'text-white' : 'text-primary'} />
-                    </div>
-                    <div className={`absolute top-12 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 rounded text-xs font-medium ${
-                      selectedStore === s.id ? 'bg-primary text-white' : 'bg-white shadow'
-                    }`}>
-                      {s.name}
-                    </div>
-                  </button>
-                );
-              })}
+            <div className="bg-white rounded-2xl border overflow-hidden h-[520px]">
+              <div ref={mapDivRef} className="w-full h-full" />
             </div>
           </div>
 
+          {/* PAINEL TOTEM */}
           <div className="space-y-4">
-            {store ? (
-              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <img
-                  src={store.image}
-                  alt={store.name}
-                  className="w-full h-40 object-cover"
+            <div className="bg-white rounded-2xl border p-4">
+              <div className="font-semibold text-gray-900 mb-2">Buscar no Google</div>
+
+              <div className="flex gap-2">
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") runSearch();
+                  }}
+                  placeholder="Ex.: farmácia, restaurante, loja de roupa..."
+                  className="w-full px-4 py-4 border rounded-2xl text-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-xl font-bold text-dark">{store.name}</h2>
-                    <button
-                      onClick={() => setSelectedStore(null)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <X size={20} />
-                    </button>
-                  </div>
+                <button
+                  onClick={runSearch}
+                  disabled={!ready || loadingSearch}
+                  className="px-5 py-4 rounded-2xl bg-blue-600 text-white font-semibold disabled:opacity-60"
+                  style={{ minWidth: 120 }}
+                >
+                  {loadingSearch ? "Buscando..." : "Buscar"}
+                </button>
+              </div>
 
-                  <span className="inline-block bg-primary/10 text-primary px-3 py-1 rounded-full text-sm mb-3">
-                    {getCategoryName(store.category)}
-                  </span>
+              {!ready && !error && <div className="text-sm text-gray-500 mt-3">Carregando mapa…</div>}
+            </div>
 
-                  <div className="space-y-2 text-sm text-gray-600 mb-4">
-                    <div className="flex items-center gap-2">
-                      <MapPin size={16} />
-                      <span>{store.address}</span>
+            
+
+            {/* LISTA DE RESULTADOS (clique = rota + QR) */}
+            <div className="bg-white rounded-2xl border p-4">
+
+              
+
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">Resultados</h2>
+                <span className="text-sm text-gray-600">{results.length}</span>
+              </div>
+
+              <div className="mt-3 space-y-3 max-h-[240px] overflow-y-auto pr-1">
+                {results.map((p) => (
+                  <button
+                    key={p.place_id}
+                    onClick={() => selectPlaceById(p.place_id)}
+                    className="w-full text-left p-4 rounded-2xl border border-gray-200 hover:bg-gray-50"
+                    style={{ minHeight: 72 }}
+                  >
+                    <div className="font-semibold text-gray-900">{p.name}</div>
+                    <div className="text-sm text-gray-600">
+                      {p.formatted_address || p.vicinity || ""}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Clock size={16} />
-                      <span>{store.hours}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Star size={16} className="text-accent fill-accent" />
-                      <span>{store.rating} estrelas</span>
-                    </div>
-                  </div>
+                  </button>
+                ))}
 
-                  <div className="flex gap-2 mb-4">
-                    <button className="flex-1 bg-primary text-white py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-opacity-90">
-                      <Navigation size={18} />
-                      Como Chegar
-                    </button>
-                    <button className="flex-1 border border-primary text-primary py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-primary/5">
-                      <Phone size={18} />
-                      Ligar
-                    </button>
+                {results.length === 0 && (
+                  <div className="text-sm text-gray-600">
+                    Faça uma busca para listar estabelecimentos próximos.
                   </div>
+                )}
+              </div>
+            </div>
 
-                  {storeProducts.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold text-dark mb-3">Produtos desta loja</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        {storeProducts.map(p => (
-                          <Link
-                            key={p.id}
-                            to={`/product/${p.id}`}
-                            className="bg-gray-50 rounded-lg p-2 hover:bg-gray-100"
-                          >
-                            <img src={p.image} alt={p.name} className="w-full h-20 object-cover rounded mb-1" />
-                            <p className="text-xs line-clamp-1">{p.name}</p>
-                            <p className="text-primary font-bold text-sm">R$ {p.price.toFixed(2)}</p>
-                          </Link>
-                        ))}
+            {/* ROTA + QR */}
+            <div className="bg-white rounded-2xl border p-4">
+              <h3 className="text-lg font-bold text-gray-900">Rota a pé</h3>
+
+              {!selected && (
+                <p className="text-sm text-gray-600 mt-2">
+                  Toque em um resultado ou em um pin no mapa para traçar o caminho.
+                </p>
+              )}
+
+              {selected && (
+                <div className="mt-2 text-sm text-gray-700 space-y-2">
+                  <div className="font-semibold text-gray-900">{selected.name}</div>
+                  <div className="text-gray-600">{selected.address}</div>
+
+                  {loadingRoute && <div className="text-gray-600">Calculando rota…</div>}
+
+                  {!loadingRoute && routeInfo && (
+                    <>
+                      <div><b>Distância:</b> {routeInfo.distanceText}</div>
+                      <div><b>Tempo a pé:</b> {routeInfo.durationText}</div>
+                    </>
+                  )}
+
+                  {/* QR CODE */}
+                  {qrUrl && (
+                    <div className="mt-3 bg-gray-50 rounded-2xl border p-4">
+                      <div className="font-semibold text-gray-900">Abrir no celular</div>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Escaneie para abrir a rota a pé no Google Maps.
+                      </p>
+                      <div className="mt-3 bg-white p-3 rounded-xl inline-block">
+                        <QRCode value={qrUrl} size={180} />
                       </div>
-                      <Link
-                        to={`/catalog?store=${store.id}`}
-                        className="mt-3 text-primary text-sm flex items-center justify-center gap-1 hover:underline"
-                      >
-                        Ver todos os produtos <ChevronRight size={16} />
-                      </Link>
                     </div>
                   )}
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-xl shadow-sm p-4">
-                <h2 className="text-lg font-bold text-dark mb-4">
-                  Lojas no Bairro ({filteredStores.length})
-                </h2>
-                <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {filteredStores.map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => setSelectedStore(s.id)}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 text-left"
-                    >
-                      <img
-                        src={s.image}
-                        alt={s.name}
-                        className="w-12 h-12 rounded-lg object-cover"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-dark">{s.name}</h3>
-                        <p className="text-sm text-gray-500 truncate">{s.address}</p>
-                      </div>
-                      <div className="flex items-center gap-1 text-sm">
-                        <Star size={14} className="text-accent fill-accent" />
-                        <span>{s.rating}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </Container>
     </div>
   );
 }
